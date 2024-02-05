@@ -34,9 +34,9 @@ def to_dict(doc: SPP_document) -> dict:
         'text': doc.text,
         'web_link': doc.web_link,
         'local_link': doc.local_link,
-        'other_data': doc.other_data.get('category') if doc.other_data.get('category') else '',
+        'other_data': '',
         'pub_date': str(doc.pub_date.timestamp()) if doc.pub_date else '',
-        'load_date': str(datetime.datetime.now().timestamp()),
+        'load_date': str(doc.load_date.timestamp()) if doc.load_date else '',
     }
 
 
@@ -44,7 +44,7 @@ parser = VISA(driver())
 docs: list[SPP_document] = parser.content()
 
 for doc in docs:
-    doc.text = re.sub(r'[^a-zA-Z0-9 !@#$%^&*()_]+', ' ', doc.text)
+    doc.text = re.sub(r'[^a-zA-Z0-9 !@#$%^&*()_\n]+', ' ', doc.text)
 
 try:
     with open('backup/documents.backup.pkl', 'wb') as file:

@@ -4,17 +4,14 @@
 1/2 документ плагина
 """
 import datetime
-import itertools
 import logging
-import os
-import re
 import time
 
 import dateutil.parser
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common import NoSuchElementException
 
 from src.spp.types import SPP_document
@@ -37,7 +34,7 @@ class VISA:
 
     HOST = 'https://usa.visa.com'
 
-    def __init__(self, webdriver: WebDriver, *args, **kwargs):
+    def __init__(self, webdriver: WebDriver, max_count_documents: int = 50, *args, **kwargs):
         """
         Конструктор класса парсера
 
@@ -48,6 +45,7 @@ class VISA:
         self._content_document = []
 
         self.driver = webdriver
+        self.max_count_documents = max_count_documents
 
         # Логер должен подключаться так. Вся настройка лежит на платформе
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -82,18 +80,10 @@ class VISA:
 
         blog_link = 'https://usa.visa.com/visa-everywhere/blog.html'
 
-
         self._parsing_visa_press_release()
         self._parsing_visa_archive()
-
-
-
-        # Логирование найденного документа
-        # self.logger.info(self._find_document_text_for_logger(document))
-
         # ---
         # ========================================
-        ...
 
     def _parsing_visa_press_release(self):
         press_release_link = 'https://usa.visa.com/about-visa/newsroom/press-releases-listing.html#2a'
@@ -118,14 +108,18 @@ class VISA:
                 if link:
                     links.append(link)
 
-        for link in links[:30]:
+        for index, link in enumerate(links):
+            # Ограничение парсинга до установленного параметра self.max_count_documents
+            if index >= self.max_count_documents:
+                self.logger.debug('Max count press-release reached')
+                break
             self._parse_press_release_page(link)
 
     def _parse_press_release_page(self, url: str):
         self.logger.debug(f'Start parse press-release from url: {url}')
-        self._initial_access_source(url, 3)
 
         try:
+            self._initial_access_source(url, 3)
             title = self.driver.find_element(By.XPATH, '//*[@id="response1"]/div[1]/h1').text
             date = self.driver.find_element(By.XPATH, '//*[@id="response1"]/div[1]/p').text
             pub_date = dateutil.parser.parse(date)
@@ -137,9 +131,9 @@ class VISA:
         except Exception as e:
             self.logger.error(e)
 
-
     def _parsing_visa_archive(self):
-        archive_link = 'https://usa.visa.com/partner-with-us/visa-consulting-analytics/leverage-economic-and-business-insights/archives.html'
+        archive_link = ('https://usa.visa.com/partner-with-us/visa-consulting-analytics/leverage-economic-and-business'
+                        '-insights/archives.html')
 
         self.logger.debug(f'Start parse press-releases from url: {archive_link}')
         self._initial_access_source(archive_link, 5)
@@ -162,21 +156,24 @@ class VISA:
                     continue
                 link = article.get_attribute('href')
 
-
                 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 # Вот это нужно поменять, если мы захотим скачивать файлы тоже.
                 if link and link.endswith('.html'):
                     links.append((link, pub_date))
         print(len(links))
         print(links)
-        for link, pub_date in links[:30]:
+        for index, (link, pub_date) in enumerate(links):
+            # Ограничение парсинга до установленного параметра self.max_count_documents
+            if index >= self.max_count_documents:
+                self.logger.debug('Max count archive reached')
+                break
             self._parse_archive_page(link, pub_date)
 
     def _parse_archive_page(self, url: str, pub_date: datetime.datetime):
         self.logger.debug(f'Start parse archive from url: {url}')
-        self._initial_access_source(url, 3)
 
         try:
+            self._initial_access_source(url, 3)
             title = self.driver.find_element(By.XPATH, '//*[@id="skipTo"]/div[1]/div/div[1]/div[2]/div/h1').text
             text = self.driver.find_element(By.CLASS_NAME, 'vs-page-section').text
 
@@ -186,12 +183,9 @@ class VISA:
         except Exception as e:
             self.logger.error(e)
 
-
-
-
     def _initial_access_source(self, url: str, delay: int = 2):
         self.driver.get(url)
-        self.logger.debug('Entered on web page '+url)
+        self.logger.debug('Entered on web page ' + url)
         time.sleep(delay)
         self._agree_cookie_pass()
 
