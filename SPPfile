@@ -60,6 +60,7 @@ ENTRY VISA content
 
 # Стандартная связка для парсеров
 ADD TimezoneSafeControl critical
+ADD CutJunkCharactersFromDocumentText critical
 ADD FilterOnlyNewDocumentWithDB critical
 ADD UploadDocumentToDB critical
 
